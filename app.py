@@ -20,68 +20,69 @@ st.set_page_config(
 # ── Custom CSS ────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Manrope:wght@600;700;800&display=swap');
 
 :root {
-    --bg: #0a0a0f;
-    --surface: #12121a;
-    --border: #1e1e2e;
-    --accent: #00ff9d;
-    --accent2: #ff6b35;
-    --text: #e8e8f0;
-    --muted: #6b6b80;
-    --danger: #ff4466;
-    --safe: #00cc7a;
+    --bg: #f0f4f8;
+    --surface: #ffffff;
+    --surface2: #e8eef4;
+    --border: #d0dce8;
+    --accent: #2563eb;
+    --accent2: #f97316;
+    --text: #1e293b;
+    --muted: #64748b;
+    --danger: #dc2626;
+    --safe: #16a34a;
 }
 
 html, body, [class*="css"] {
-    font-family: 'DM Mono', monospace;
+    font-family: 'Inter', sans-serif;
     background-color: var(--bg);
     color: var(--text);
+    font-size: 15px;
 }
 
 .stApp { background-color: var(--bg); }
 
-h1, h2, h3 { font-family: 'Syne', sans-serif; }
+h1, h2, h3 { font-family: 'Manrope', sans-serif; color: var(--text); }
 
 .main-title {
-    font-family: 'Syne', sans-serif;
-    font-size: 3rem;
+    font-family: 'Manrope', sans-serif;
+    font-size: 2.6rem;
     font-weight: 800;
-    letter-spacing: -0.03em;
-    background: linear-gradient(135deg, var(--accent), #00b8d9);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+    letter-spacing: -0.02em;
+    color: var(--accent);
     margin-bottom: 0.2rem;
 }
 
 .subtitle {
     color: var(--muted);
-    font-size: 0.85rem;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
+    font-size: 0.9rem;
+    letter-spacing: 0.05em;
     margin-bottom: 2rem;
 }
 
 .metric-card {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: 14px;
     padding: 1.2rem 1.4rem;
     margin-bottom: 0.8rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
 }
 
 .metric-label {
-    font-size: 0.7rem;
-    letter-spacing: 0.12em;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--muted);
-    margin-bottom: 0.3rem;
+    margin-bottom: 0.4rem;
 }
 
 .metric-value {
-    font-family: 'Syne', sans-serif;
-    font-size: 1.6rem;
+    font-family: 'Manrope', sans-serif;
+    font-size: 1.5rem;
     font-weight: 700;
     color: var(--text);
 }
@@ -90,104 +91,108 @@ h1, h2, h3 { font-family: 'Syne', sans-serif; }
 .metric-value.negative { color: var(--danger); }
 
 .section-title {
-    font-family: 'Syne', sans-serif;
-    font-size: 0.75rem;
-    font-weight: 600;
-    letter-spacing: 0.2em;
+    font-family: 'Manrope', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
     color: var(--accent);
     margin: 2rem 0 1rem;
     padding-bottom: 0.5rem;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 2px solid var(--border);
 }
 
 .indicator-badge {
     display: inline-block;
-    padding: 0.25rem 0.7rem;
-    border-radius: 6px;
-    font-size: 0.75rem;
-    font-weight: 500;
-    margin: 0.2rem;
+    padding: 0.3rem 0.8rem;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin: 0.25rem;
 }
 
-.badge-bull { background: rgba(0,204,122,0.15); color: var(--safe); border: 1px solid rgba(0,204,122,0.3); }
-.badge-bear { background: rgba(255,68,102,0.15); color: var(--danger); border: 1px solid rgba(255,68,102,0.3); }
-.badge-neutral { background: rgba(107,107,128,0.15); color: var(--muted); border: 1px solid rgba(107,107,128,0.3); }
+.badge-bull { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+.badge-bear { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
+.badge-neutral { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
 
 .news-item {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-left: 3px solid var(--accent2);
-    border-radius: 8px;
+    border-left: 4px solid var(--accent2);
+    border-radius: 10px;
     padding: 1rem 1.2rem;
     margin-bottom: 0.6rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
-.news-title { font-size: 0.9rem; color: var(--text); margin-bottom: 0.3rem; }
-.news-meta { font-size: 0.7rem; color: var(--muted); }
+.news-title { font-size: 0.92rem; color: var(--text); margin-bottom: 0.3rem; font-weight: 500; line-height: 1.5; }
+.news-meta { font-size: 0.75rem; color: var(--muted); }
 
 .ai-block {
-    background: linear-gradient(135deg, rgba(0,255,157,0.05), rgba(0,184,217,0.05));
-    border: 1px solid rgba(0,255,157,0.2);
-    border-radius: 12px;
-    padding: 1.5rem;
-    line-height: 1.8;
-    font-size: 0.9rem;
-    color: #e8e8f0 !important;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 14px;
+    padding: 1.6rem;
+    line-height: 1.9;
+    font-size: 0.95rem;
+    color: #1e293b !important;
+    box-shadow: 0 1px 4px rgba(37,99,235,0.08);
 }
 
 .stButton > button {
     background: var(--accent) !important;
-    color: #0a0a0f !important;
-    font-family: 'Syne', sans-serif !important;
+    color: #ffffff !important;
+    font-family: 'Manrope', sans-serif !important;
     font-weight: 700 !important;
-    font-size: 0.9rem !important;
-    letter-spacing: 0.05em !important;
+    font-size: 0.95rem !important;
     border: none !important;
-    border-radius: 8px !important;
+    border-radius: 10px !important;
     padding: 0.6rem 2rem !important;
     transition: all 0.2s !important;
+    box-shadow: 0 2px 8px rgba(37,99,235,0.25) !important;
 }
 
 .stButton > button:hover {
-    background: #00cc7a !important;
+    background: #1d4ed8 !important;
     transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(37,99,235,0.35) !important;
 }
 
 .stTextInput > div > div > input {
     background: var(--surface) !important;
-    border: 1px solid var(--border) !important;
-    border-radius: 8px !important;
+    border: 1.5px solid var(--border) !important;
+    border-radius: 10px !important;
     color: var(--text) !important;
-    font-family: 'DM Mono', monospace !important;
+    font-family: 'Inter', sans-serif !important;
     font-size: 1rem !important;
     padding: 0.6rem 1rem !important;
 }
 
 .stTextInput > div > div > input:focus {
     border-color: var(--accent) !important;
-    box-shadow: 0 0 0 2px rgba(0,255,157,0.15) !important;
+    box-shadow: 0 0 0 3px rgba(37,99,235,0.12) !important;
 }
 
-div[data-testid="stMetricValue"] { font-family: 'Syne', sans-serif; }
+div[data-testid="stMetricValue"] { font-family: 'Manrope', sans-serif; }
 
 .fund-table {
     background: var(--surface);
-    border-radius: 10px;
+    border-radius: 12px;
     overflow: hidden;
     border: 1px solid var(--border);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
 }
 
 .fund-row {
     display: flex;
     justify-content: space-between;
-    padding: 0.75rem 1.2rem;
+    padding: 0.8rem 1.2rem;
     border-bottom: 1px solid var(--border);
-    font-size: 0.85rem;
+    font-size: 0.88rem;
 }
 .fund-row:last-child { border-bottom: none; }
-.fund-key { color: var(--muted); }
-.fund-val { color: var(--text); font-weight: 500; }
+.fund-key { color: var(--muted); font-weight: 500; }
+.fund-val { color: var(--text); font-weight: 600; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -244,47 +249,47 @@ def build_chart(df):
     fig.add_trace(go.Candlestick(
         x=df.index, open=df["Open"], high=df["High"],
         low=df["Low"], close=df["Close"],
-        increasing_line_color="#00ff9d", decreasing_line_color="#ff4466",
+        increasing_line_color="#16a34a", decreasing_line_color="#dc2626",
         name="價格",
     ), row=1, col=1)
 
     # MAs
-    for col, color, name in [("MA20","#ffd166","MA20"), ("MA50","#00b8d9","MA50")]:
+    for col, color, name in [("MA20","#f97316","MA20"), ("MA50","#2563eb","MA50")]:
         if col in df.columns:
             fig.add_trace(go.Scatter(x=df.index, y=df[col], line=dict(color=color, width=1.2), name=name), row=1, col=1)
 
     # Bollinger
-    for col, color in [("BBU_20_2.0","rgba(107,107,128,0.5)"), ("BBL_20_2.0","rgba(107,107,128,0.5)")]:
+    for col, color in [("BBU_20_2.0","rgba(100,116,139,0.5)"), ("BBL_20_2.0","rgba(100,116,139,0.5)")]:
         if col in df.columns:
             fig.add_trace(go.Scatter(x=df.index, y=df[col], line=dict(color=color, width=0.8, dash="dot"), showlegend=False), row=1, col=1)
 
     # MACD
     if "MACD_12_26_9" in df.columns:
-        fig.add_trace(go.Scatter(x=df.index, y=df["MACD_12_26_9"], line=dict(color="#00ff9d", width=1.2), name="MACD"), row=2, col=1)
+        fig.add_trace(go.Scatter(x=df.index, y=df["MACD_12_26_9"], line=dict(color="#2563eb", width=1.2), name="MACD"), row=2, col=1)
     if "MACDs_12_26_9" in df.columns:
-        fig.add_trace(go.Scatter(x=df.index, y=df["MACDs_12_26_9"], line=dict(color="#ff6b35", width=1.2), name="Signal"), row=2, col=1)
+        fig.add_trace(go.Scatter(x=df.index, y=df["MACDs_12_26_9"], line=dict(color="#f97316", width=1.2), name="Signal"), row=2, col=1)
     if "MACDh_12_26_9" in df.columns:
-        colors = ["#00cc7a" if v >= 0 else "#ff4466" for v in df["MACDh_12_26_9"].fillna(0)]
+        colors = ["#16a34a" if v >= 0 else "#dc2626" for v in df["MACDh_12_26_9"].fillna(0)]
         fig.add_trace(go.Bar(x=df.index, y=df["MACDh_12_26_9"], marker_color=colors, name="Histogram", showlegend=False), row=2, col=1)
 
     # RSI
     if "RSI_14" in df.columns:
-        fig.add_trace(go.Scatter(x=df.index, y=df["RSI_14"], line=dict(color="#ffd166", width=1.2), name="RSI"), row=3, col=1)
-        for level, color in [(70,"rgba(255,68,102,0.3)"), (30,"rgba(0,204,122,0.3)")]:
+        fig.add_trace(go.Scatter(x=df.index, y=df["RSI_14"], line=dict(color="#7c3aed", width=1.5), name="RSI"), row=3, col=1)
+        for level, color in [(70,"rgba(220,38,38,0.3)"), (30,"rgba(22,163,74,0.3)")]:
             fig.add_hline(y=level, line_dash="dash", line_color=color, row=3, col=1)
 
     fig.update_layout(
         height=650,
-        plot_bgcolor="#12121a",
-        paper_bgcolor="#0a0a0f",
-        font=dict(family="DM Mono", color="#6b6b80", size=11),
+        plot_bgcolor="#f8fafc",
+        paper_bgcolor="#f0f4f8",
+        font=dict(family="Inter", color="#64748b", size=11),
         xaxis_rangeslider_visible=False,
-        legend=dict(bgcolor="rgba(0,0,0,0)", font=dict(size=10)),
+        legend=dict(bgcolor="rgba(255,255,255,0.8)", font=dict(size=10), bordercolor="#d0dce8", borderwidth=1),
         margin=dict(l=10, r=10, t=30, b=10),
     )
     for i in range(1, 4):
-        fig.update_xaxes(gridcolor="#1e1e2e", row=i, col=1)
-        fig.update_yaxes(gridcolor="#1e1e2e", row=i, col=1)
+        fig.update_xaxes(gridcolor="#e2e8f0", row=i, col=1)
+        fig.update_yaxes(gridcolor="#e2e8f0", row=i, col=1)
 
     return fig
 
