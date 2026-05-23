@@ -8,12 +8,8 @@ import google.generativeai as genai
 import os
 from datetime import datetime, timedelta
 import json
-import requests
-import requests_cache
 import time
-
-# Cache yfinance requests to avoid rate limiting
-requests_cache.install_cache("yfinance_cache", expire_after=300)
+import random
 
 # ── Page config ──────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -366,26 +362,40 @@ if analyze and ticker:
     with st.spinner(f"正在分析 {ticker}，請稍候…"):
 
         # ── Fetch Data ────────────────────────────────────────────────────────
+        def fetch_stock_data(ticker, retries=3):
+            for i in range(retries):
+                try:
+                    stock = yf.Ticker(ticker)
+                    hist = yf.download(ticker, period="6mo", progress=False, auto_adjust=True)
+                    info = stock.fast_info
+                    return stock, hist, info
+                except Exception as e:
+                    if i < retries - 1:
+                        time.sleep(2 + random.uniform(1, 3))
+                    else:
+                        raise e
+
         try:
-            session = requests_cache.CachedSession("yfinance_cache", expire_after=300)
-            session.headers.update({"User-Agent": "Mozilla/5.0"})
-            stock = yf.Ticker(ticker, session=session)
-            time.sleep(1)
-            info = stock.info
+            stock, hist, fast_info = fetch_stock_data(ticker)
         except Exception as e:
-            st.error(f"資料載入失敗（Yahoo Finance 限速），請等 30 秒後再試。錯誤：{e}")
+            st.error(f"資料載入失敗，請稍後再試。錯誤：{e}")
             st.stop()
 
-        if not info or (info.get("regularMarketPrice") is None and info.get("currentPrice") is None):
+        if hist.empty:
             st.error(f"找不到股票代號 **{ticker}**，請確認後重試。")
             st.stop()
 
-        hist = stock.history(period="6mo")
-        if hist.empty:
-            st.error("無法取得歷史價格資料。")
-            st.stop()
+        # Build info dict from fast_info + fallback
+        try:
+            full_info = stock.info
+        except:
+            full_info = {}
+        info = full_info
 
         # ── Technical Indicators ──────────────────────────────────────────────
+        # yf.download returns MultiIndex columns, flatten them
+        if isinstance(hist.columns, pd.MultiIndex):
+            hist.columns = hist.columns.get_level_values(0)
         df = hist[["Open","High","Low","Close","Volume"]].copy()
 
         # RSI
@@ -407,8 +417,12 @@ if analyze and ticker:
         df["MA50"] = df["Close"].rolling(50).mean()
 
         latest = df.iloc[-1]
-        price = info.get("currentPrice") or info.get("regularMarketPrice") or float(latest["Close"])
-        prev_close = info.get("previousClose") or float(df.iloc[-2]["Close"])
+        try:
+            price = float(info.get("currentPrice") or info.get("regularMarketPrice") or latest["Close"])
+            prev_close = float(info.get("previousClose") or df.iloc[-2]["Close"])
+        except:
+            price = float(latest["Close"])
+            prev_close = float(df.iloc[-2]["Close"])
         change = price - prev_close
         change_pct = change / prev_close * 100
 
@@ -563,16 +577,19 @@ else:
 
             for t in tickers:
                 try:
-                    session = requests_cache.CachedSession("yfinance_cache", expire_after=300)
-                    session.headers.update({"User-Agent": "Mozilla/5.0"})
-                    s = yf.Ticker(t, session=session)
-                    time.sleep(1)
-                    info = s.info
-                    hist = s.history(period="6mo")
+                    s = yf.Ticker(t)
+                    hist = yf.download(t, period="6mo", progress=False, auto_adjust=True)
+                    time.sleep(1 + random.uniform(0.5, 1.5))
+                    try:
+                        info = s.info
+                    except:
+                        info = {}
                     if hist.empty:
                         st.warning(f"{t} 無法取得資料，已略過。")
                         continue
 
+                    if isinstance(hist.columns, pd.MultiIndex):
+                        hist.columns = hist.columns.get_level_values(0)
                     df = hist[["Open","High","Low","Close","Volume"]].copy()
                     df["RSI_14"] = ta.momentum.RSIIndicator(df["Close"], window=14).rsi()
                     macd = ta.trend.MACD(df["Close"])
