@@ -1,7 +1,7 @@
 import streamlit as st
 import yfinance as yf
 import pandas as pd
-import pandas_ta as ta
+import ta
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import google.generativeai as genai
@@ -359,9 +359,22 @@ if analyze and ticker:
 
         # ── Technical Indicators ──────────────────────────────────────────────
         df = hist[["Open","High","Low","Close","Volume"]].copy()
-        df.ta.macd(append=True)
-        df.ta.rsi(append=True)
-        df.ta.bbands(append=True)
+
+        # RSI
+        df["RSI_14"] = ta.momentum.RSIIndicator(df["Close"], window=14).rsi()
+
+        # MACD
+        macd = ta.trend.MACD(df["Close"])
+        df["MACD_12_26_9"]  = macd.macd()
+        df["MACDs_12_26_9"] = macd.macd_signal()
+        df["MACDh_12_26_9"] = macd.macd_diff()
+
+        # Bollinger Bands
+        bb = ta.volatility.BollingerBands(df["Close"], window=20, window_dev=2)
+        df["BBU_20_2.0"] = bb.bollinger_hband()
+        df["BBL_20_2.0"] = bb.bollinger_lband()
+
+        # Moving Averages
         df["MA20"] = df["Close"].rolling(20).mean()
         df["MA50"] = df["Close"].rolling(50).mean()
 
