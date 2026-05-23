@@ -340,8 +340,14 @@ def ai_analysis(ticker, info, tech, news_titles):
 
 # ── Main App ──────────────────────────────────────────────────────────────────
 
-st.markdown('<div class="main-title">股票分析儀</div>', unsafe_allow_html=True)
-st.markdown('<div class="subtitle">美股個股深度分析報告</div>', unsafe_allow_html=True)
+# ── Navigation ───────────────────────────────────────────────────────────────
+page = st.sidebar.radio("", ["📈 個股分析", "⚖️ 多股比較"], label_visibility="collapsed")
+st.sidebar.markdown("---")
+st.sidebar.markdown("<small style='color:#64748b'>輸入股票代號開始分析</small>", unsafe_allow_html=True)
+
+if page == "📈 個股分析":
+    st.markdown('<div class="main-title">股票分析儀</div>', unsafe_allow_html=True)
+    st.markdown('<div class="subtitle">美股個股深度分析報告</div>', unsafe_allow_html=True)
 
 col_input, col_btn, _ = st.columns([2, 1, 4])
 with col_input:
@@ -417,9 +423,11 @@ if analyze and ticker:
         company = info.get("longName", ticker)
         st.markdown(f"### {company} &nbsp;<span style='color:#6b6b80;font-size:1rem'>{ticker}</span>", unsafe_allow_html=True)
 
-        m1, m2, m3, m4 = st.columns(4)
         sign_cls = "positive" if change >= 0 else "negative"
         sign = "+" if change >= 0 else ""
+
+        m1, m2 = st.columns(2)
+        m3, m4 = st.columns(2)
 
         for col, label, val, cls in [
             (m1, "現價", f"${price:.2f}", ""),
@@ -483,24 +491,18 @@ if analyze and ticker:
         # ── Fundamentals ──────────────────────────────────────────────────────
         st.markdown('<div class="section-title">📋 基本面</div>', unsafe_allow_html=True)
 
-        fc1, fc2 = st.columns(2)
-        fund_left = [
+        fund_items = [
             ("本益比 (P/E)", fmt_num(info.get("trailingPE"),1)),
             ("EPS (TTM)", f"${fmt_num(info.get('trailingEps'),2)}"),
             ("毛利率", fmt_pct(info.get("grossMargins"))),
             ("營業利益率", fmt_pct(info.get("operatingMargins"))),
-        ]
-        fund_right = [
             ("ROE", fmt_pct(info.get("returnOnEquity"))),
             ("負債權益比", fmt_num(info.get("debtToEquity"),1)),
             ("總營收 (TTM)", fmt_large(info.get("totalRevenue"))),
             ("自由現金流", fmt_large(info.get("freeCashflow"))),
         ]
-
-        for col, rows in [(fc1, fund_left), (fc2, fund_right)]:
-            with col:
-                rows_html = "".join(f'<div class="fund-row"><span class="fund-key">{k}</span><span class="fund-val">{v}</span></div>' for k,v in rows)
-                st.markdown(f'<div class="fund-table">{rows_html}</div>', unsafe_allow_html=True)
+        rows_html = "".join(f'<div class="fund-row"><span class="fund-key">{k}</span><span class="fund-val">{v}</span></div>' for k,v in fund_items)
+        st.markdown(f'<div class="fund-table">{rows_html}</div>', unsafe_allow_html=True)
 
         # ── News ──────────────────────────────────────────────────────────────
         if news_titles:
@@ -520,3 +522,192 @@ if analyze and ticker:
 
 elif analyze and not ticker:
     st.warning("請輸入股票代號。")
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PAGE 2: 多股票比較
+# ═══════════════════════════════════════════════════════════════════════════════
+else:
+    st.markdown('<div class="main-title">多股比較</div>', unsafe_allow_html=True)
+    st.markdown('<div class="subtitle">最多同時比較 5 支股票</div>', unsafe_allow_html=True)
+
+    ticker_input = st.text_input("", placeholder="輸入股票代號，用逗號分隔，例如 AAPL, TSLA, NVDA", label_visibility="collapsed")
+    col_btn2, _ = st.columns([1, 5])
+    with col_btn2:
+        compare_btn = st.button("開始比較", use_container_width=True)
+
+    if compare_btn and ticker_input:
+        tickers = [t.strip().upper() for t in ticker_input.split(",") if t.strip()][:5]
+
+        if len(tickers) < 2:
+            st.warning("請至少輸入 2 個股票代號。")
+            st.stop()
+
+        with st.spinner(f"正在載入 {', '.join(tickers)} 的資料…"):
+
+            all_info = {}
+            all_hist = {}
+            all_tech = {}
+
+            for t in tickers:
+                try:
+                    s = yf.Ticker(t)
+                    info = s.info
+                    hist = s.history(period="6mo")
+                    if hist.empty:
+                        st.warning(f"{t} 無法取得資料，已略過。")
+                        continue
+
+                    df = hist[["Open","High","Low","Close","Volume"]].copy()
+                    df["RSI_14"] = ta.momentum.RSIIndicator(df["Close"], window=14).rsi()
+                    macd = ta.trend.MACD(df["Close"])
+                    df["MACD_12_26_9"]  = macd.macd()
+                    df["MACDs_12_26_9"] = macd.macd_signal()
+                    df["MA20"] = df["Close"].rolling(20).mean()
+                    df["MA50"] = df["Close"].rolling(50).mean()
+
+                    latest = df.iloc[-1]
+                    price = info.get("currentPrice") or info.get("regularMarketPrice") or float(latest["Close"])
+                    prev  = info.get("previousClose") or float(df.iloc[-2]["Close"])
+
+                    all_info[t] = info
+                    all_hist[t] = df
+                    all_tech[t] = {
+                        "price": price,
+                        "change_pct": (price - prev) / prev * 100,
+                        "rsi": latest.get("RSI_14"),
+                        "macd": latest.get("MACD_12_26_9"),
+                        "signal": latest.get("MACDs_12_26_9"),
+                        "ma20": latest.get("MA20"),
+                        "ma50": latest.get("MA50"),
+                    }
+                except Exception as e:
+                    st.warning(f"{t} 載入失敗：{e}")
+
+            valid = list(all_tech.keys())
+            if len(valid) < 2:
+                st.error("有效股票不足，請重新輸入。")
+                st.stop()
+
+            # ── 股價走勢圖（正規化 %）────────────────────────────────────────
+            st.markdown('<div class="section-title">📊 股價走勢比較（以起始日為基準 %）</div>', unsafe_allow_html=True)
+
+            colors = ["#2563eb","#dc2626","#16a34a","#f97316","#7c3aed"]
+            fig_price = go.Figure()
+            for i, t in enumerate(valid):
+                close = all_hist[t]["Close"]
+                normalized = (close / close.iloc[0] - 1) * 100
+                fig_price.add_trace(go.Scatter(
+                    x=all_hist[t].index, y=normalized,
+                    name=t, line=dict(color=colors[i % len(colors)], width=2)
+                ))
+            fig_price.add_hline(y=0, line_dash="dash", line_color="#94a3b8")
+            fig_price.update_layout(
+                height=400, plot_bgcolor="#f8fafc", paper_bgcolor="#f0f4f8",
+                font=dict(family="Inter", color="#64748b", size=11),
+                legend=dict(bgcolor="rgba(255,255,255,0.8)", bordercolor="#d0dce8", borderwidth=1),
+                yaxis_title="報酬率 %", margin=dict(l=10, r=10, t=20, b=10),
+                hovermode="x unified",
+            )
+            fig_price.update_xaxes(gridcolor="#e2e8f0")
+            fig_price.update_yaxes(gridcolor="#e2e8f0")
+            st.plotly_chart(fig_price, use_container_width=True)
+
+            # ── 技術指標比較 ─────────────────────────────────────────────────
+            st.markdown('<div class="section-title">⚡ 技術指標比較</div>', unsafe_allow_html=True)
+
+            tech_rows = ""
+            for t in valid:
+                tk = all_tech[t]
+                chg = tk["change_pct"]
+                chg_cls = "color:#16a34a" if chg >= 0 else "color:#dc2626"
+                chg_sign = "+" if chg >= 0 else ""
+                rsi = tk["rsi"]
+                rsi_color = "#dc2626" if rsi and float(rsi) > 70 else ("#16a34a" if rsi and float(rsi) < 30 else "#1e293b")
+                macd_bull = tk["macd"] and tk["signal"] and float(tk["macd"]) > float(tk["signal"])
+                ma_bull = tk["ma20"] and tk["ma50"] and float(tk["ma20"]) > float(tk["ma50"])
+
+                tech_rows += f"""
+                <tr style="border-bottom:1px solid #e2e8f0">
+                    <td style="padding:0.8rem 1rem;font-weight:700;color:#1e293b">{t}</td>
+                    <td style="padding:0.8rem 1rem;font-weight:600">${tk['price']:.2f}</td>
+                    <td style="padding:0.8rem 1rem;font-weight:600;{chg_cls}">{chg_sign}{chg:.2f}%</td>
+                    <td style="padding:0.8rem 1rem;font-weight:600;color:{rsi_color}">{fmt_num(rsi,1)}</td>
+                    <td style="padding:0.8rem 1rem">{'<span style="background:#dcfce7;color:#15803d;padding:0.2rem 0.6rem;border-radius:6px;font-size:0.8rem;font-weight:600">多</span>' if macd_bull else '<span style="background:#fee2e2;color:#b91c1c;padding:0.2rem 0.6rem;border-radius:6px;font-size:0.8rem;font-weight:600">空</span>'}</td>
+                    <td style="padding:0.8rem 1rem">{'<span style="background:#dcfce7;color:#15803d;padding:0.2rem 0.6rem;border-radius:6px;font-size:0.8rem;font-weight:600">多</span>' if ma_bull else '<span style="background:#fee2e2;color:#b91c1c;padding:0.2rem 0.6rem;border-radius:6px;font-size:0.8rem;font-weight:600">空</span>'}</td>
+                </tr>"""
+
+            st.markdown(f"""
+            <div style="overflow-x:auto">
+            <table style="width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #d0dce8;font-size:0.88rem">
+                <thead>
+                    <tr style="background:#f1f5f9;font-size:0.75rem;text-transform:uppercase;letter-spacing:0.08em;color:#64748b">
+                        <th style="padding:0.8rem 1rem;text-align:left">股票</th>
+                        <th style="padding:0.8rem 1rem;text-align:left">現價</th>
+                        <th style="padding:0.8rem 1rem;text-align:left">漲跌</th>
+                        <th style="padding:0.8rem 1rem;text-align:left">RSI</th>
+                        <th style="padding:0.8rem 1rem;text-align:left">MACD</th>
+                        <th style="padding:0.8rem 1rem;text-align:left">均線</th>
+                    </tr>
+                </thead>
+                <tbody>{tech_rows}</tbody>
+            </table>
+            </div>""", unsafe_allow_html=True)
+
+            # ── 基本面比較 ───────────────────────────────────────────────────
+            st.markdown('<div class="section-title">📋 基本面比較</div>', unsafe_allow_html=True)
+
+            fund_keys = [
+                ("市值", lambda i: fmt_large(i.get("marketCap"))),
+                ("本益比 P/E", lambda i: fmt_num(i.get("trailingPE"),1)),
+                ("EPS (TTM)", lambda i: f"${fmt_num(i.get('trailingEps'),2)}"),
+                ("毛利率", lambda i: fmt_pct(i.get("grossMargins"))),
+                ("營業利益率", lambda i: fmt_pct(i.get("operatingMargins"))),
+                ("ROE", lambda i: fmt_pct(i.get("returnOnEquity"))),
+                ("負債權益比", lambda i: fmt_num(i.get("debtToEquity"),1)),
+                ("總營收 (TTM)", lambda i: fmt_large(i.get("totalRevenue"))),
+            ]
+
+            header = "".join(f'<th style="padding:0.8rem 1rem;text-align:left">{t}</th>' for t in valid)
+            fund_rows_html = ""
+            for label, fn in fund_keys:
+                cells = "".join(f'<td style="padding:0.8rem 1rem;font-weight:600;color:#1e293b">{fn(all_info[t])}</td>' for t in valid)
+                fund_rows_html += f'<tr style="border-bottom:1px solid #e2e8f0"><td style="padding:0.8rem 1rem;color:#64748b;font-weight:500">{label}</td>{cells}</tr>'
+
+            st.markdown(f"""
+            <div style="overflow-x:auto">
+            <table style="width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #d0dce8;font-size:0.88rem">
+                <thead>
+                    <tr style="background:#f1f5f9;font-size:0.75rem;text-transform:uppercase;letter-spacing:0.08em;color:#64748b">
+                        <th style="padding:0.8rem 1rem;text-align:left">指標</th>{header}
+                    </tr>
+                </thead>
+                <tbody>{fund_rows_html}</tbody>
+            </table>
+            </div>""", unsafe_allow_html=True)
+
+            # ── RSI 比較圖 ───────────────────────────────────────────────────
+            st.markdown('<div class="section-title">📉 RSI 走勢比較</div>', unsafe_allow_html=True)
+            fig_rsi = go.Figure()
+            for i, t in enumerate(valid):
+                if "RSI_14" in all_hist[t].columns:
+                    fig_rsi.add_trace(go.Scatter(
+                        x=all_hist[t].index, y=all_hist[t]["RSI_14"],
+                        name=t, line=dict(color=colors[i % len(colors)], width=2)
+                    ))
+            fig_rsi.add_hline(y=70, line_dash="dash", line_color="rgba(220,38,38,0.4)")
+            fig_rsi.add_hline(y=30, line_dash="dash", line_color="rgba(22,163,74,0.4)")
+            fig_rsi.update_layout(
+                height=300, plot_bgcolor="#f8fafc", paper_bgcolor="#f0f4f8",
+                font=dict(family="Inter", color="#64748b", size=11),
+                legend=dict(bgcolor="rgba(255,255,255,0.8)", bordercolor="#d0dce8", borderwidth=1),
+                yaxis=dict(range=[0,100]), margin=dict(l=10, r=10, t=20, b=10),
+                hovermode="x unified",
+            )
+            fig_rsi.update_xaxes(gridcolor="#e2e8f0")
+            fig_rsi.update_yaxes(gridcolor="#e2e8f0")
+            st.plotly_chart(fig_rsi, use_container_width=True)
+
+            st.markdown("<br><span style='color:#94a3b8;font-size:0.75rem'>⚠️ 本報告僅供參考，不構成投資建議。</span>", unsafe_allow_html=True)
+
+    elif compare_btn and not ticker_input:
+        st.warning("請輸入股票代號。")
