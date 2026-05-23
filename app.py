@@ -133,6 +133,7 @@ h1, h2, h3 { font-family: 'Syne', sans-serif; }
     padding: 1.5rem;
     line-height: 1.8;
     font-size: 0.9rem;
+    color: #e8e8f0 !important;
 }
 
 .stButton > button {
