@@ -9,6 +9,8 @@ from datetime import datetime, timedelta
 import json
 import time
 import random
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 # ── Page config ──────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -194,6 +196,74 @@ div[data-testid="stMetricValue"] { font-family: 'Manrope', sans-serif; }
 .fund-row:last-child { border-bottom: none; }
 .fund-key { color: var(--muted); font-weight: 500; }
 .fund-val { color: var(--text); font-weight: 600; }
+
+/* iPhone / mobile fix for 關鍵數值 */
+.key-values-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.2rem 1.4rem;
+    margin-bottom: 0.8rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+
+.key-values-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.65rem 1rem;
+    margin-top: 0.7rem;
+}
+
+.key-value-item {
+    min-width: 0;
+    line-height: 1.45;
+}
+
+.key-value-name {
+    display: block;
+    color: var(--muted) !important;
+    font-size: 0.78rem;
+    font-weight: 600;
+    margin-bottom: 0.15rem;
+    white-space: nowrap;
+}
+
+.key-value-number {
+    display: block;
+    color: #1e293b !important;
+    -webkit-text-fill-color: #1e293b !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    font-family: 'Manrope', sans-serif;
+    font-size: 1.05rem;
+    font-weight: 800;
+    word-break: break-word;
+}
+
+@media (max-width: 640px) {
+    .main-title {
+        font-size: 2rem;
+    }
+
+    .metric-card,
+    .key-values-card {
+        padding: 1rem;
+    }
+
+    .key-values-grid {
+        grid-template-columns: 1fr;
+        gap: 0.8rem;
+    }
+
+    .key-value-number {
+        font-size: 1.15rem;
+    }
+
+    iframe {
+        max-width: 100% !important;
+    }
+}
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -537,15 +607,33 @@ if analyze and ticker:
 
         with tc2:
             st.markdown(f"""
-            <div class="metric-card">
+            <div class="key-values-card">
                 <div class="metric-label">關鍵數值</div>
-                <div style="margin-top:0.5rem;font-size:0.85rem;line-height:2">
-                    RSI(14)：<b>{tech['rsi']}</b> &nbsp;|&nbsp;
-                    MACD：<b>{tech['macd']}</b><br>
-                    MA20：<b>{tech['ma20']}</b> &nbsp;|&nbsp;
-                    MA50：<b>{tech['ma50']}</b><br>
-                    布林上軌：<b>{tech['bbu']}</b> &nbsp;|&nbsp;
-                    下軌：<b>{tech['bbl']}</b>
+                <div class="key-values-grid">
+                    <div class="key-value-item">
+                        <span class="key-value-name">RSI(14)</span>
+                        <span class="key-value-number">{tech['rsi']}</span>
+                    </div>
+                    <div class="key-value-item">
+                        <span class="key-value-name">MACD</span>
+                        <span class="key-value-number">{tech['macd']}</span>
+                    </div>
+                    <div class="key-value-item">
+                        <span class="key-value-name">MA20</span>
+                        <span class="key-value-number">{tech['ma20']}</span>
+                    </div>
+                    <div class="key-value-item">
+                        <span class="key-value-name">MA50</span>
+                        <span class="key-value-number">{tech['ma50']}</span>
+                    </div>
+                    <div class="key-value-item">
+                        <span class="key-value-name">布林上軌</span>
+                        <span class="key-value-number">{tech['bbu']}</span>
+                    </div>
+                    <div class="key-value-item">
+                        <span class="key-value-name">布林下軌</span>
+                        <span class="key-value-number">{tech['bbl']}</span>
+                    </div>
                 </div>
             </div>""", unsafe_allow_html=True)
 
