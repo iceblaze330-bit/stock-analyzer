@@ -291,7 +291,10 @@ def build_chart(df):
 # ── AI Analysis ───────────────────────────────────────────────────────────────
 
 def ai_analysis(ticker, info, tech, news_titles):
-    genai.configure(api_key=os.environ.get("GOOGLE_API_KEY"))
+    api_key = os.environ.get("GOOGLE_API_KEY") or st.secrets.get("GOOGLE_API_KEY", "")
+    if not api_key:
+        raise ValueError("找不到 GOOGLE_API_KEY，請確認 Streamlit Cloud Secrets 設定")
+    genai.configure(api_key=api_key)
     model = genai.GenerativeModel("gemini-1.5-pro")
 
     prompt = f"""你是一位專業的美股分析師。請根據以下資料，用繁體中文撰寫一份簡潔的個股分析摘要（約300字）。
@@ -501,9 +504,12 @@ if analyze and ticker:
 
         # ── AI Analysis ───────────────────────────────────────────────────────
         st.markdown('<div class="section-title">🤖 AI 綜合分析</div>', unsafe_allow_html=True)
-        with st.spinner("Claude 正在分析中…"):
-            analysis = ai_analysis(ticker, info, tech, news_titles)
-        st.markdown(f'<div class="ai-block">{analysis.replace(chr(10),"<br>")}</div>', unsafe_allow_html=True)
+        with st.spinner("Gemini 正在分析中…"):
+            try:
+                analysis = ai_analysis(ticker, info, tech, news_titles)
+                st.markdown(f'<div class="ai-block">{analysis.replace(chr(10),"<br>")}</div>', unsafe_allow_html=True)
+            except Exception as e:
+                st.error(f"AI 分析失敗：{e}")
         st.markdown("<br><span style='color:#3a3a4a;font-size:0.7rem'>⚠️ 本報告僅供參考，不構成投資建議。投資有風險，請自行判斷。</span>", unsafe_allow_html=True)
 
 elif analyze and not ticker:
