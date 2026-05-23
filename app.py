@@ -335,17 +335,50 @@ def get_history(ticker, period="6mo"):
     return yf.download(ticker, period=period, progress=False, auto_adjust=True)
 
 
+def _valid_number(value):
+    try:
+        if value is None:
+            return False
+        v = float(value)
+        return pd.notna(v)
+    except Exception:
+        return False
+
+
+def _first_existing_row(df, names):
+    """Return the first matching financial statement row value.
+
+    yfinance row names can change slightly across tickers. This helper keeps the
+    app from showing N/A when the same value exists under a different label.
+    """
+    try:
+        if df is None or df.empty:
+            return None
+        for name in names:
+            if name in df.index:
+                row = df.loc[name].dropna()
+                if not row.empty:
+                    return row.iloc[0]
+    except Exception:
+        pass
+    return None
+
+
 @st.cache_data(ttl=600, show_spinner=False)
 def get_stock_info(ticker):
     s = yf.Ticker(ticker)
     info = {}
-    for _ in range(2):
+
+    # 1) Main yfinance quoteSummary source. Sometimes Yahoo returns partial data.
+    for _ in range(3):
         try:
             info = s.info or {}
             if info.get("marketCap") or info.get("trailingPE") or info.get("longName"):
                 break
         except Exception:
             time.sleep(1 + random.uniform(0.2, 0.8))
+
+    # 2) Fast quote fallback for price / market cap / 52-week range.
     try:
         fi = s.fast_info
         fallback_map = {
@@ -356,10 +389,69 @@ def get_stock_info(ticker):
             "fiftyTwoWeekLow": getattr(fi, "year_low", None),
         }
         for k, v in fallback_map.items():
-            if not info.get(k) and v is not None:
+            if not _valid_number(info.get(k)) and v is not None:
                 info[k] = v
     except Exception:
         pass
+
+    # 3) Financial statement fallback. This fixes many N/A rows.
+    try:
+        income = s.get_income_stmt(freq="trailing")
+    except Exception:
+        try:
+            income = s.financials
+        except Exception:
+            income = pd.DataFrame()
+
+    try:
+        balance = s.get_balance_sheet(freq="trailing")
+    except Exception:
+        try:
+            balance = s.balance_sheet
+        except Exception:
+            balance = pd.DataFrame()
+
+    try:
+        cashflow = s.get_cashflow(freq="trailing")
+    except Exception:
+        try:
+            cashflow = s.cashflow
+        except Exception:
+            cashflow = pd.DataFrame()
+
+    total_revenue = _first_existing_row(income, ["Total Revenue", "TotalRevenue", "Operating Revenue"])
+    gross_profit = _first_existing_row(income, ["Gross Profit", "GrossProfit"])
+    operating_income = _first_existing_row(income, ["Operating Income", "OperatingIncome"])
+    net_income = _first_existing_row(income, ["Net Income", "NetIncome", "Net Income Common Stockholders"])
+    diluted_eps = _first_existing_row(income, ["Diluted EPS", "DilutedEPS", "Basic EPS", "BasicEPS"])
+    total_debt = _first_existing_row(balance, ["Total Debt", "TotalDebt", "Long Term Debt", "LongTermDebt"])
+    equity = _first_existing_row(balance, ["Stockholders Equity", "StockholdersEquity", "Total Equity Gross Minority Interest", "Common Stock Equity"])
+    free_cashflow = _first_existing_row(cashflow, ["Free Cash Flow", "FreeCashFlow"])
+
+    # Some Yahoo statements do not expose Free Cash Flow directly. Calculate it.
+    if not _valid_number(free_cashflow):
+        operating_cf = _first_existing_row(cashflow, ["Operating Cash Flow", "OperatingCashFlow", "Total Cash From Operating Activities"])
+        capex = _first_existing_row(cashflow, ["Capital Expenditure", "CapitalExpenditure", "Capital Expenditures"])
+        if _valid_number(operating_cf) and _valid_number(capex):
+            free_cashflow = float(operating_cf) + float(capex)  # capex is usually negative
+
+    if not _valid_number(info.get("totalRevenue")) and _valid_number(total_revenue):
+        info["totalRevenue"] = total_revenue
+    if not _valid_number(info.get("freeCashflow")) and _valid_number(free_cashflow):
+        info["freeCashflow"] = free_cashflow
+    if not _valid_number(info.get("grossMargins")) and _valid_number(gross_profit) and _valid_number(total_revenue) and float(total_revenue) != 0:
+        info["grossMargins"] = float(gross_profit) / float(total_revenue)
+    if not _valid_number(info.get("operatingMargins")) and _valid_number(operating_income) and _valid_number(total_revenue) and float(total_revenue) != 0:
+        info["operatingMargins"] = float(operating_income) / float(total_revenue)
+    if not _valid_number(info.get("returnOnEquity")) and _valid_number(net_income) and _valid_number(equity) and float(equity) != 0:
+        info["returnOnEquity"] = float(net_income) / float(equity)
+    if not _valid_number(info.get("debtToEquity")) and _valid_number(total_debt) and _valid_number(equity) and float(equity) != 0:
+        info["debtToEquity"] = float(total_debt) / float(equity) * 100
+    if not _valid_number(info.get("trailingEps")) and _valid_number(diluted_eps):
+        info["trailingEps"] = diluted_eps
+    if not _valid_number(info.get("trailingPE")) and _valid_number(info.get("currentPrice")) and _valid_number(info.get("trailingEps")) and float(info.get("trailingEps")) != 0:
+        info["trailingPE"] = float(info.get("currentPrice")) / float(info.get("trailingEps"))
+
     return info
 
 
@@ -683,6 +775,8 @@ def render_single_stock(ticker):
     ]
     rows_html = "".join(f'<div class="fund-row"><span class="fund-key">{k}</span><span class="fund-val">{v}</span></div>' for k, v in fund_items)
     st.markdown(f'<div class="fund-table">{rows_html}</div>', unsafe_allow_html=True)
+    if any(str(v).endswith("N/A") or str(v) == "N/A" for _, v in fund_items):
+        st.caption("部分基本面資料由 Yahoo Finance 提供；若 Yahoo 暫時沒有回傳，會顯示 N/A。ETF、基金、ADR 或新上市公司較常出現 N/A。")
 
     if news_titles:
         st.markdown('<div class="section-title">📰 近期新聞</div>', unsafe_allow_html=True)
