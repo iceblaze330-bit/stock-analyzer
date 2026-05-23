@@ -8,6 +8,12 @@ import google.generativeai as genai
 import os
 from datetime import datetime, timedelta
 import json
+import requests
+import requests_cache
+import time
+
+# Cache yfinance requests to avoid rate limiting
+requests_cache.install_cache("yfinance_cache", expire_after=300)
 
 # ── Page config ──────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -360,10 +366,17 @@ if analyze and ticker:
     with st.spinner(f"正在分析 {ticker}，請稍候…"):
 
         # ── Fetch Data ────────────────────────────────────────────────────────
-        stock = yf.Ticker(ticker)
-        info = stock.info
+        try:
+            session = requests_cache.CachedSession("yfinance_cache", expire_after=300)
+            session.headers.update({"User-Agent": "Mozilla/5.0"})
+            stock = yf.Ticker(ticker, session=session)
+            time.sleep(1)
+            info = stock.info
+        except Exception as e:
+            st.error(f"資料載入失敗（Yahoo Finance 限速），請等 30 秒後再試。錯誤：{e}")
+            st.stop()
 
-        if not info or info.get("regularMarketPrice") is None and info.get("currentPrice") is None:
+        if not info or (info.get("regularMarketPrice") is None and info.get("currentPrice") is None):
             st.error(f"找不到股票代號 **{ticker}**，請確認後重試。")
             st.stop()
 
@@ -550,7 +563,10 @@ else:
 
             for t in tickers:
                 try:
-                    s = yf.Ticker(t)
+                    session = requests_cache.CachedSession("yfinance_cache", expire_after=300)
+                    session.headers.update({"User-Agent": "Mozilla/5.0"})
+                    s = yf.Ticker(t, session=session)
+                    time.sleep(1)
                     info = s.info
                     hist = s.history(period="6mo")
                     if hist.empty:
