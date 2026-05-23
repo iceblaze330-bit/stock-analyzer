@@ -1,9 +1,8 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import yfinance as yf
 import pandas as pd
 import ta
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import google.generativeai as genai
 import os
 from datetime import datetime, timedelta
@@ -469,9 +468,34 @@ if analyze and ticker:
                     <div class="metric-value {cls}">{val}</div>
                 </div>""", unsafe_allow_html=True)
 
-        # ── Chart ─────────────────────────────────────────────────────────────
+        # ── Chart (TradingView) ───────────────────────────────────────────────
         st.markdown('<div class="section-title">📊 走勢圖</div>', unsafe_allow_html=True)
-        st.plotly_chart(build_chart(df), use_container_width=True)
+        st.components.v1.html(f"""
+        <div style="border-radius:12px;overflow:hidden;border:1px solid #d0dce8">
+        <div class="tradingview-widget-container" style="height:500px;width:100%">
+            <div class="tradingview-widget-container__widget" style="height:500px;width:100%"></div>
+            <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
+            {{
+                "autosize": true,
+                "symbol": "{ticker}",
+                "interval": "D",
+                "timezone": "America/New_York",
+                "theme": "light",
+                "style": "1",
+                "locale": "zh_TW",
+                "allow_symbol_change": false,
+                "calendar": false,
+                "studies": [
+                    "STD;MACD",
+                    "STD;RSI",
+                    "STD;Bollinger_Bands"
+                ],
+                "support_host": "https://www.tradingview.com"
+            }}
+            </script>
+        </div>
+        </div>
+        """, height=520)
 
         # ── Technical Signals ─────────────────────────────────────────────────
         st.markdown('<div class="section-title">⚡ 技術指標</div>', unsafe_allow_html=True)
@@ -621,29 +645,42 @@ else:
                 st.error("有效股票不足，請重新輸入。")
                 st.stop()
 
-            # ── 股價走勢圖（正規化 %）────────────────────────────────────────
-            st.markdown('<div class="section-title">📊 股價走勢比較（以起始日為基準 %）</div>', unsafe_allow_html=True)
-
-            colors = ["#2563eb","#dc2626","#16a34a","#f97316","#7c3aed"]
-            fig_price = go.Figure()
-            for i, t in enumerate(valid):
-                close = all_hist[t]["Close"]
-                normalized = (close / close.iloc[0] - 1) * 100
-                fig_price.add_trace(go.Scatter(
-                    x=all_hist[t].index, y=normalized,
-                    name=t, line=dict(color=colors[i % len(colors)], width=2)
-                ))
-            fig_price.add_hline(y=0, line_dash="dash", line_color="#94a3b8")
-            fig_price.update_layout(
-                height=400, plot_bgcolor="#f8fafc", paper_bgcolor="#f0f4f8",
-                font=dict(family="Inter", color="#64748b", size=11),
-                legend=dict(bgcolor="rgba(255,255,255,0.8)", bordercolor="#d0dce8", borderwidth=1),
-                yaxis_title="報酬率 %", margin=dict(l=10, r=10, t=20, b=10),
-                hovermode="x unified",
-            )
-            fig_price.update_xaxes(gridcolor="#e2e8f0")
-            fig_price.update_yaxes(gridcolor="#e2e8f0")
-            st.plotly_chart(fig_price, use_container_width=True)
+            # ── 股價走勢圖（TradingView）────────────────────────────────────
+            st.markdown('<div class="section-title">📊 股價走勢比較</div>', unsafe_allow_html=True)
+            symbols_json = ",".join([f'{{"proName":"NASDAQ:{t}","title":"{t}"}}' for t in valid])
+            st.components.v1.html(f"""
+            <div style="border-radius:12px;overflow:hidden;border:1px solid #d0dce8">
+            <div class="tradingview-widget-container" style="height:450px;width:100%">
+                <div class="tradingview-widget-container__widget" style="height:450px;width:100%"></div>
+                <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-symbol-overview.js" async>
+                {{
+                    "symbols": [{symbols_json}],
+                    "chartOnly": false,
+                    "width": "100%",
+                    "height": "450",
+                    "locale": "zh_TW",
+                    "colorTheme": "light",
+                    "autosize": true,
+                    "showVolume": true,
+                    "showMA": true,
+                    "hideDateRanges": false,
+                    "hideMarketStatus": false,
+                    "hideSymbolLogo": false,
+                    "scalePosition": "right",
+                    "scaleMode": "Normal",
+                    "fontFamily": "Inter, sans-serif",
+                    "fontSize": "10",
+                    "noTimeScale": false,
+                    "valuesTracking": "1",
+                    "changeMode": "price-and-percent",
+                    "chartType": "area",
+                    "lineWidth": 2,
+                    "lineType": 0
+                }}
+                </script>
+            </div>
+            </div>
+            """, height=470)
 
             # ── 技術指標比較 ─────────────────────────────────────────────────
             st.markdown('<div class="section-title">⚡ 技術指標比較</div>', unsafe_allow_html=True)
@@ -718,27 +755,32 @@ else:
             </table>
             </div>""", unsafe_allow_html=True)
 
-            # ── RSI 比較圖 ───────────────────────────────────────────────────
-            st.markdown('<div class="section-title">📉 RSI 走勢比較</div>', unsafe_allow_html=True)
-            fig_rsi = go.Figure()
-            for i, t in enumerate(valid):
-                if "RSI_14" in all_hist[t].columns:
-                    fig_rsi.add_trace(go.Scatter(
-                        x=all_hist[t].index, y=all_hist[t]["RSI_14"],
-                        name=t, line=dict(color=colors[i % len(colors)], width=2)
-                    ))
-            fig_rsi.add_hline(y=70, line_dash="dash", line_color="rgba(220,38,38,0.4)")
-            fig_rsi.add_hline(y=30, line_dash="dash", line_color="rgba(22,163,74,0.4)")
-            fig_rsi.update_layout(
-                height=300, plot_bgcolor="#f8fafc", paper_bgcolor="#f0f4f8",
-                font=dict(family="Inter", color="#64748b", size=11),
-                legend=dict(bgcolor="rgba(255,255,255,0.8)", bordercolor="#d0dce8", borderwidth=1),
-                yaxis=dict(range=[0,100]), margin=dict(l=10, r=10, t=20, b=10),
-                hovermode="x unified",
-            )
-            fig_rsi.update_xaxes(gridcolor="#e2e8f0")
-            fig_rsi.update_yaxes(gridcolor="#e2e8f0")
-            st.plotly_chart(fig_rsi, use_container_width=True)
+            # ── 個別 TradingView 圖表 ────────────────────────────────────────
+            st.markdown('<div class="section-title">📉 個別走勢圖</div>', unsafe_allow_html=True)
+            for t in valid:
+                st.markdown(f"**{t}**")
+                st.components.v1.html(f"""
+                <div style="border-radius:10px;overflow:hidden;border:1px solid #d0dce8;margin-bottom:1rem">
+                <div class="tradingview-widget-container" style="height:300px;width:100%">
+                    <div class="tradingview-widget-container__widget" style="height:300px;width:100%"></div>
+                    <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js" async>
+                    {{
+                        "symbol": "{t}",
+                        "width": "100%",
+                        "height": "300",
+                        "locale": "zh_TW",
+                        "dateRange": "6M",
+                        "colorTheme": "light",
+                        "trendLineColor": "rgba(37, 99, 235, 1)",
+                        "underLineColor": "rgba(37, 99, 235, 0.1)",
+                        "isTransparent": false,
+                        "autosize": true,
+                        "largeChartUrl": ""
+                    }}
+                    </script>
+                </div>
+                </div>
+                """, height=320)
 
             st.markdown("<br><span style='color:#94a3b8;font-size:0.75rem'>⚠️ 本報告僅供參考，不構成投資建議。</span>", unsafe_allow_html=True)
 
