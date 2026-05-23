@@ -472,8 +472,8 @@ if analyze and ticker:
         st.markdown('<div class="section-title">📊 走勢圖</div>', unsafe_allow_html=True)
         st.components.v1.html(f"""
         <div style="border-radius:12px;overflow:hidden;border:1px solid #d0dce8">
-        <div class="tradingview-widget-container" style="height:500px;width:100%">
-            <div class="tradingview-widget-container__widget" style="height:500px;width:100%"></div>
+        <div class="tradingview-widget-container" style="height:700px;width:100%">
+            <div class="tradingview-widget-container__widget" style="height:700px;width:100%"></div>
             <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
             {{
                 "autosize": true,
@@ -485,6 +485,7 @@ if analyze and ticker:
                 "locale": "zh_TW",
                 "allow_symbol_change": false,
                 "calendar": false,
+                "height": 700,
                 "studies": [
                     "STD;MACD",
                     "STD;RSI",
@@ -495,7 +496,7 @@ if analyze and ticker:
             </script>
         </div>
         </div>
-        """, height=520)
+        """, height=720)
 
         # ── Technical Signals ─────────────────────────────────────────────────
         st.markdown('<div class="section-title">⚡ 技術指標</div>', unsafe_allow_html=True)
