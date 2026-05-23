@@ -361,21 +361,8 @@ if analyze and ticker:
     with st.spinner(f"正在分析 {ticker}，請稍候…"):
 
         # ── Fetch Data ────────────────────────────────────────────────────────
-        def fetch_stock_data(ticker, retries=3):
-            for i in range(retries):
-                try:
-                    stock = yf.Ticker(ticker)
-                    hist = yf.download(ticker, period="6mo", progress=False, auto_adjust=True)
-                    info = stock.fast_info
-                    return stock, hist, info
-                except Exception as e:
-                    if i < retries - 1:
-                        time.sleep(2 + random.uniform(1, 3))
-                    else:
-                        raise e
-
         try:
-            stock, hist, fast_info = fetch_stock_data(ticker)
+            hist = yf.download(ticker, period="6mo", progress=False, auto_adjust=True)
         except Exception as e:
             st.error(f"資料載入失敗，請稍後再試。錯誤：{e}")
             st.stop()
@@ -384,12 +371,34 @@ if analyze and ticker:
             st.error(f"找不到股票代號 **{ticker}**，請確認後重試。")
             st.stop()
 
-        # Build info dict from fast_info + fallback
+        stock = yf.Ticker(ticker)
+
+        # Try to get info with retries
+        info = {}
+        for attempt in range(3):
+            try:
+                info = stock.info or {}
+                if info.get("trailingPE") or info.get("marketCap"):
+                    break
+            except:
+                pass
+            time.sleep(2 + random.uniform(1, 2))
+
+        # Fallback: use fast_info for price data
         try:
-            full_info = stock.info
+            fi = stock.fast_info
+            if not info.get("currentPrice"):
+                info["currentPrice"] = getattr(fi, "last_price", None)
+            if not info.get("previousClose"):
+                info["previousClose"] = getattr(fi, "previous_close", None)
+            if not info.get("marketCap"):
+                info["marketCap"] = getattr(fi, "market_cap", None)
+            if not info.get("fiftyTwoWeekHigh"):
+                info["fiftyTwoWeekHigh"] = getattr(fi, "year_high", None)
+            if not info.get("fiftyTwoWeekLow"):
+                info["fiftyTwoWeekLow"] = getattr(fi, "year_low", None)
         except:
-            full_info = {}
-        info = full_info
+            pass
 
         # ── Technical Indicators ──────────────────────────────────────────────
         # yf.download returns MultiIndex columns, flatten them
