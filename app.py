@@ -295,7 +295,7 @@ def ai_analysis(ticker, info, tech, news_titles):
     if not api_key:
         raise ValueError("找不到 GOOGLE_API_KEY，請確認 Streamlit Cloud Secrets 設定")
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel("gemini-1.5-pro")
+    model = genai.GenerativeModel("gemini-1.5-pro-latest")
 
     prompt = f"""你是一位專業的美股分析師。請根據以下資料，用繁體中文撰寫一份簡潔的個股分析摘要（約300字）。
 
